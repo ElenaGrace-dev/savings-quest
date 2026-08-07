@@ -17,20 +17,16 @@
 </head>
 <body>
 <div class="shell">
-  <div class="top">
-    <div class="brand"><small>YOUR MONEY MISSION</small><h1>Savings Quest</h1></div>
-    <div class="topActions"><button id="themeToggle" class="themeToggle" aria-label="Toggle dark mode">🌙 Dark</button><button id="installBtn" class="pill install">Install app</button></div>
-  </div>
+  <div class="top"><div class="brand"><small>YOUR MONEY MISSION</small><h1>Savings Quest</h1></div><div class="topActions"><button id="themeToggle" class="themeToggle" aria-label="Toggle dark mode">🌙 Dark</button><button id="installBtn" class="pill install">Install app</button></div></div>
   <div class="grid">
     <main>
       <section class="card hero">
         <div class="row"><div><div class="eyebrow">This week's paycheck</div><div class="pay" id="paycheckDisplay">$357.84</div><div class="muted mini" id="paycheckNote"></div></div><div><div class="score" id="score">100</div><div class="mini muted" style="text-align:center">PLAN SCORE</div></div></div>
         <div class="formgrid"><label>Actual take-home this week<input id="actualPay" type="number" step=".01"></label><label>Typical weekly take-home<input id="baselinePay" type="number" step=".01"></label></div>
-        <button id="recalcBtn" class="btn" style="margin-top:10px">Build this week's plan</button>
-        <div class="alloc" id="allocationCards"></div><div class="insight" id="smartExtra"></div>
+        <button id="recalcBtn" class="btn" style="margin-top:10px">Build this week's plan</button><div class="alloc" id="allocationCards"></div><div class="insight" id="smartExtra"></div>
       </section>
       <div class="tabs"><button class="tab active" data-tab="envelopes">Envelopes</button><button class="tab" data-tab="debts">Affirm + Klarna</button><button class="tab" data-tab="history">Week history</button></div>
-      <section class="card" id="envelopesPanel"><div class="row"><h2>Bill envelopes</h2><button id="addEnvelopeBtn" class="btn secondary">+ Add envelope</button></div><div class="muted mini" style="margin-bottom:12px">Tracks each week's contribution. Borrowing schedules next-week Flexible repayment with 1% added.</div><div id="envelopeList" class="list"></div></section>
+      <section class="card" id="envelopesPanel"><div class="row"><h2>Bill envelopes</h2><button id="addEnvelopeBtn" class="btn secondary">+ Add envelope</button></div><div class="muted mini" style="margin-bottom:12px">Tracks each week's contribution. Borrowing schedules next-week Flexible repayment using your current self-imposed penalty rate.</div><div id="envelopeList" class="list"></div></section>
       <section class="card" id="debtsPanel" style="display:none"><div class="row"><h2>Payoff Quest</h2><span id="totalDebtPill" class="pill mini"></span></div><div class="muted mini" style="margin-bottom:12px">Smart Extra Pay targets the best current payoff choice after essentials are safe.</div><div id="debtList" class="list"></div></section>
       <section class="card" id="historyPanel" style="display:none"><h2>Weekly contribution history</h2><div id="historyList" class="list"></div></section>
     </main>
@@ -43,8 +39,9 @@
   <footer>Savings Quest • local-first personal budgeting PWA</footer>
 </div>
 <div class="modal" id="envelopeModal"><div class="modalbox"><div class="row"><h3>Add bill envelope</h3><button class="btn secondary" onclick="closeModal('envelopeModal')">Close</button></div><div class="formgrid"><label>Name<input id="envName"></label><label>Monthly / target amount<input id="envTarget" type="number" step=".01"></label><label>Current balance<input id="envBalance" type="number" step=".01" value="0"></label><label>Weekly contribution<input id="envWeekly" type="number" step=".01"></label><label>Due day<input id="envDueDay" type="number"></label></div><button id="saveEnvelopeBtn" class="btn" style="margin-top:14px">Save envelope</button></div></div>
-<div class="modal" id="borrowModal"><div class="modalbox"><div class="row"><h3>Borrow from envelope</h3><button class="btn secondary" onclick="closeModal('borrowModal')">Close</button></div><p class="muted mini">Savings Quest adds 1% and reserves repayment from next week's Flexible money.</p><input type="hidden" id="borrowEnvId"><label>Amount to borrow<input id="borrowAmount" type="number" step=".01"></label><button id="confirmBorrow" class="btn soft" style="margin-top:14px">Borrow and schedule repayment</button></div></div>
+<div class="modal" id="borrowModal"><div class="modalbox"><div class="row"><h3>Borrow from envelope</h3><button class="btn secondary" onclick="closeModal('borrowModal')">Close</button></div><p class="muted mini">Savings Quest applies your current self-imposed penalty and reserves repayment from next week's Flexible money.</p><input type="hidden" id="borrowEnvId"><label>Amount to borrow<input id="borrowAmount" type="number" step=".01"></label><button id="confirmBorrow" class="btn soft" style="margin-top:14px">Borrow</button></div></div>
 <div id="toast" class="toast"></div>
 <script src="app.js"></script>
 <script src="envelope-editor.js"></script>
+<script src="borrowing-settings.js"></script>
 </body></html>
