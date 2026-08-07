@@ -81,4 +81,9 @@
   window.editEnvelope=openEditEnvelopeModal;
   if(addBtn) addBtn.onclick=openAddEnvelopeModal;
   if(saveBtn) saveBtn.onclick=saveEnvelopeFromModal;
+
+  // Load borrowing penalty controls after the base app and envelope editor are ready.
+  const borrowingScript=document.createElement('script');
+  borrowingScript.src='borrowing-settings.js';
+  document.body.appendChild(borrowingScript);
 })();
