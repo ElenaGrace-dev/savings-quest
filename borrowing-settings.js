@@ -1,17 +1,16 @@
 // Savings Quest dynamic self-imposed envelope borrowing penalty.
 (() => {
   const DAY = 86400000;
+  const INTERNAL_BORROW_TRIGGER = 4;
   const clamp = (n,min,max)=>Math.min(max,Math.max(min,n));
   const dateMs = s => s ? new Date(`${s}T12:00:00`).getTime() : NaN;
 
-  // Migrate older penalty setting into the new dynamic system.
   if (!Number.isFinite(Number(state.borrowBasePercent))) {
     state.borrowBasePercent = Number.isFinite(Number(state.borrowInterestPercent)) ? Number(state.borrowInterestPercent) : 10;
   }
   state.borrowBasePercent = clamp(Math.round(Number(state.borrowBasePercent)*100)/100,0,100);
   if (!Number.isFinite(Number(state.borrowCurrentPercent))) state.borrowCurrentPercent = state.borrowBasePercent;
   state.borrowCurrentPercent = clamp(Math.max(state.borrowBasePercent,Number(state.borrowCurrentPercent)),0,100);
-  if (!Number.isFinite(Number(state.borrowIncreaseEvery))) state.borrowIncreaseEvery = 3;
   if (!Number.isFinite(Number(state.borrowDecreaseDays))) state.borrowDecreaseDays = 30;
   if (!Number.isFinite(Number(state.borrowCountSinceIncrease))) state.borrowCountSinceIncrease = 0;
   if (!state.lastBorrowDate) state.lastBorrowDate = null;
@@ -44,9 +43,8 @@
     panel.style.marginTop = '14px';
     panel.innerHTML = `
       <b>Borrowing penalty</b>
-      <div class="mini muted" style="margin:6px 0 10px">The rate rises when borrowing becomes frequent and slowly returns to your baseline when you stop borrowing.</div>
+      <div class="mini muted" style="margin:6px 0 10px">Savings Quest quietly raises the penalty when borrowing becomes too frequent and lowers it gradually when you stop borrowing.</div>
       <label style="display:block">Baseline penalty (%)<input id="borrowBasePercent" type="number" min="0" max="100" step="1"></label>
-      <label style="display:block;margin-top:9px">Increase by 1% after this many borrows<input id="borrowIncreaseEvery" type="number" min="1" max="50" step="1"></label>
       <label style="display:block;margin-top:9px">Lower by 1% after this many days without borrowing<input id="borrowDecreaseDays" type="number" min="1" max="365" step="1"></label>
       <div class="mini" style="margin-top:10px"><b>Current penalty:</b> <span id="borrowCurrentRate"></span></div>
       <div class="mini muted" id="borrowPenaltyStatus" style="margin-top:4px"></div>`;
@@ -54,34 +52,33 @@
   }
 
   const baseInput=document.getElementById('borrowBasePercent');
-  const increaseInput=document.getElementById('borrowIncreaseEvery');
   const decreaseInput=document.getElementById('borrowDecreaseDays');
   const currentRateEl=document.getElementById('borrowCurrentRate');
   const statusEl=document.getElementById('borrowPenaltyStatus');
 
-  function currentRate(){ applyInactivityDecrease(); return Math.max(state.borrowBasePercent,state.borrowCurrentPercent); }
+  function currentRate(){
+    applyInactivityDecrease();
+    return Math.max(state.borrowBasePercent,state.borrowCurrentPercent);
+  }
+
   function refreshSettingsUI(){
     if(baseInput) baseInput.value=state.borrowBasePercent;
-    if(increaseInput) increaseInput.value=state.borrowIncreaseEvery;
     if(decreaseInput) decreaseInput.value=state.borrowDecreaseDays;
     if(currentRateEl) currentRateEl.textContent=`${currentRate()}%`;
     if(statusEl){
-      const left=Math.max(1,state.borrowIncreaseEvery-state.borrowCountSinceIncrease);
       const last=state.lastBorrowDate ? `Last borrow: ${state.lastBorrowDate}.` : 'No borrowing recorded yet.';
-      statusEl.textContent=`${last} ${left} more borrow${left===1?'':'s'} before the next +1% increase. The rate never falls below ${state.borrowBasePercent}%.`;
+      statusEl.textContent=`${last} Repeated borrowing can raise the rate automatically. The rate never falls below ${state.borrowBasePercent}%.`;
     }
   }
 
   const originalSaveSettings=saveBtn?.onclick;
   if(saveBtn){
     saveBtn.onclick=()=>{
-      const base=Number(baseInput?.value), inc=Number(increaseInput?.value), days=Number(decreaseInput?.value);
+      const base=Number(baseInput?.value), days=Number(decreaseInput?.value);
       if(!Number.isFinite(base)||base<0||base>100) return toast('Baseline borrowing penalty must be between 0% and 100%.');
-      if(!Number.isInteger(inc)||inc<1||inc>50) return toast('Borrow trigger must be between 1 and 50 borrows.');
       if(!Number.isInteger(days)||days<1||days>365) return toast('No-borrow cooldown must be between 1 and 365 days.');
       const oldBase=state.borrowBasePercent;
       state.borrowBasePercent=base;
-      state.borrowIncreaseEvery=inc;
       state.borrowDecreaseDays=days;
       if(state.borrowCurrentPercent<base || state.borrowCurrentPercent===oldBase) state.borrowCurrentPercent=base;
       if(typeof originalSaveSettings==='function') originalSaveSettings(); else {save();render();toast('Settings saved.');}
@@ -114,14 +111,14 @@
     state.lastPenaltyReviewDate=today();
     state.borrowCountSinceIncrease++;
     let raised=false;
-    if(state.borrowCountSinceIncrease>=state.borrowIncreaseEvery && state.borrowCurrentPercent<100){
+    if(state.borrowCountSinceIncrease>=INTERNAL_BORROW_TRIGGER && state.borrowCurrentPercent<100){
       state.borrowCurrentPercent=Math.min(100,state.borrowCurrentPercent+1);
       state.borrowCountSinceIncrease=0;
       raised=true;
     }
     closeModal('borrowModal');
     render(); save(); refreshSettingsUI(); refreshBorrowCopy();
-    toast(raised?`Repayment ${money(owed)}. Future penalty increased to ${state.borrowCurrentPercent}%.`:`Repayment scheduled: ${money(owed)} (${pct}% penalty)`);
+    toast(raised?`Repayment ${money(owed)}. Your borrowing penalty has increased for future borrowing.`:`Repayment scheduled: ${money(owed)} (${pct}% penalty)`);
   };
 
   renderRepayments=function(){
