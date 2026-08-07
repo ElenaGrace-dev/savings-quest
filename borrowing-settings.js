@@ -1,9 +1,18 @@
 // Savings Quest dynamic self-imposed envelope borrowing penalty.
 (() => {
   const DAY = 86400000;
-  const INTERNAL_BORROW_TRIGGER = 4;
   const clamp = (n,min,max)=>Math.min(max,Math.max(min,n));
   const dateMs = s => s ? new Date(`${s}T12:00:00`).getTime() : NaN;
+
+  function secretTrigger(){
+    // Use browser cryptographic randomness so the next trigger is not predictable.
+    if (window.crypto?.getRandomValues) {
+      const a = new Uint32Array(1);
+      window.crypto.getRandomValues(a);
+      return 1 + (a[0] % 100);
+    }
+    return 1 + Math.floor(Math.random()*100);
+  }
 
   if (!Number.isFinite(Number(state.borrowBasePercent))) {
     state.borrowBasePercent = Number.isFinite(Number(state.borrowInterestPercent)) ? Number(state.borrowInterestPercent) : 10;
@@ -13,6 +22,10 @@
   state.borrowCurrentPercent = clamp(Math.max(state.borrowBasePercent,Number(state.borrowCurrentPercent)),0,100);
   if (!Number.isFinite(Number(state.borrowDecreaseDays))) state.borrowDecreaseDays = 30;
   if (!Number.isFinite(Number(state.borrowCountSinceIncrease))) state.borrowCountSinceIncrease = 0;
+  if (!Number.isInteger(Number(state.secretBorrowTrigger)) || Number(state.secretBorrowTrigger) < 1 || Number(state.secretBorrowTrigger) > 100) {
+    state.secretBorrowTrigger = secretTrigger();
+    state.borrowCountSinceIncrease = 0;
+  }
   if (!state.lastBorrowDate) state.lastBorrowDate = null;
   if (!state.lastPenaltyReviewDate) state.lastPenaltyReviewDate = state.lastBorrowDate || today();
 
@@ -27,7 +40,10 @@
     const old = state.borrowCurrentPercent;
     state.borrowCurrentPercent = Math.max(state.borrowBasePercent,state.borrowCurrentPercent-steps);
     state.lastPenaltyReviewDate = new Date(anchor + steps*days*DAY).toISOString().slice(0,10);
-    if (state.borrowCurrentPercent === state.borrowBasePercent) state.borrowCountSinceIncrease = 0;
+    if (state.borrowCurrentPercent === state.borrowBasePercent) {
+      state.borrowCountSinceIncrease = 0;
+      state.secretBorrowTrigger = secretTrigger();
+    }
     return old-state.borrowCurrentPercent;
   }
 
@@ -43,7 +59,7 @@
     panel.style.marginTop = '14px';
     panel.innerHTML = `
       <b>Borrowing penalty</b>
-      <div class="mini muted" style="margin:6px 0 10px">Savings Quest quietly raises the penalty when borrowing becomes too frequent and lowers it gradually when you stop borrowing.</div>
+      <div class="mini muted" style="margin:6px 0 10px">Savings Quest can raise the penalty without warning when repeated borrowing crosses a hidden threshold, then lower it gradually when you stop borrowing.</div>
       <label style="display:block">Baseline penalty (%)<input id="borrowBasePercent" type="number" min="0" max="100" step="1"></label>
       <label style="display:block;margin-top:9px">Lower by 1% after this many days without borrowing<input id="borrowDecreaseDays" type="number" min="1" max="365" step="1"></label>
       <div class="mini" style="margin-top:10px"><b>Current penalty:</b> <span id="borrowCurrentRate"></span></div>
@@ -67,7 +83,7 @@
     if(currentRateEl) currentRateEl.textContent=`${currentRate()}%`;
     if(statusEl){
       const last=state.lastBorrowDate ? `Last borrow: ${state.lastBorrowDate}.` : 'No borrowing recorded yet.';
-      statusEl.textContent=`${last} Repeated borrowing can raise the rate automatically. The rate never falls below ${state.borrowBasePercent}%.`;
+      statusEl.textContent=`${last} The next automatic increase is intentionally unpredictable. The rate never falls below ${state.borrowBasePercent}%.`;
     }
   }
 
@@ -92,7 +108,7 @@
     const modal=document.getElementById('borrowModal');
     const copy=modal?.querySelector('p');
     const button=document.getElementById('confirmBorrow');
-    if(copy) copy.textContent=`Savings Quest adds your current ${pct}% self-imposed penalty and reserves the repayment from next week's Flexible money.`;
+    if(copy) copy.textContent=`Savings Quest adds your current ${pct}% self-imposed penalty and reserves the repayment from next week's Flexible money. A future increase can happen without warning.`;
     if(button) button.textContent=`Borrow with ${pct}% penalty`;
     refreshSettingsUI();
   }
@@ -111,14 +127,15 @@
     state.lastPenaltyReviewDate=today();
     state.borrowCountSinceIncrease++;
     let raised=false;
-    if(state.borrowCountSinceIncrease>=INTERNAL_BORROW_TRIGGER && state.borrowCurrentPercent<100){
+    if(state.borrowCountSinceIncrease>=state.secretBorrowTrigger && state.borrowCurrentPercent<100){
       state.borrowCurrentPercent=Math.min(100,state.borrowCurrentPercent+1);
       state.borrowCountSinceIncrease=0;
+      state.secretBorrowTrigger=secretTrigger();
       raised=true;
     }
     closeModal('borrowModal');
     render(); save(); refreshSettingsUI(); refreshBorrowCopy();
-    toast(raised?`Repayment ${money(owed)}. Your borrowing penalty has increased for future borrowing.`:`Repayment scheduled: ${money(owed)} (${pct}% penalty)`);
+    toast(raised?`Repayment ${money(owed)}. Your borrowing penalty just increased for future borrowing.`:`Repayment scheduled: ${money(owed)} (${pct}% penalty)`);
   };
 
   renderRepayments=function(){
